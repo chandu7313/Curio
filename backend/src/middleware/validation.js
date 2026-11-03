@@ -44,6 +44,7 @@ export const ExplainStreamSchema = z.object({
 });
 
 export const FollowUpStreamSchema = z.object({
+  sessionId: z.string().max(120).optional(),
   selectedText: z
     .string({ required_error: 'selectedText is required' })
     .trim()
@@ -51,11 +52,12 @@ export const FollowUpStreamSchema = z.object({
     .max(15000),
   surroundingContext: z.string().max(10000).optional().default(''),
   previousExplanation: z.string().max(15000).optional().default(''),
+  summary: z.string().max(3000).optional().default(''),
   conversationHistory: z
     .array(
       z.object({
         role: z.enum(['user', 'assistant', 'model']),
-        content: z.string().max(4000),
+        content: z.string().max(6000),
       })
     )
     .max(10, 'conversationHistory exceeds maximum turn limit of 10')

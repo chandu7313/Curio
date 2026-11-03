@@ -42,7 +42,14 @@ import {
   Tag,
   Square,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
+import {
+  createExplanationSession,
+  isSameSelectionSession,
+  addSessionMessage,
+  getBoundedHistory,
+} from '../../shared/services/sessionManager.js';
 import { calculateOverlayPosition, clampDragPosition } from './positioning.js';
 import {
   generateMockExplanation,
@@ -185,10 +192,10 @@ function LoadingSkeleton() {
  */
 export function FloatingOverlay({ context, onClose }) {
   const [currentContext, setCurrentContext] = useState(context);
+  const [session, setSession] = useState(() => createExplanationSession(context, 'intermediate'));
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
-  useEffect(() => {
-    setCurrentContext(context);
-  }, [context]);
   const [mode, setMode] = useState('intermediate');
   const [status, setStatus] = useState('loading'); // 'loading' | 'streaming' | 'completed' | 'error' | 'cancelled'
   const [streamingText, setStreamingText] = useState('');
@@ -196,10 +203,12 @@ export function FloatingOverlay({ context, onClose }) {
   const [providerInfo, setProviderInfo] = useState({ name: '', model: '' });
   const [bookmarked, setBookmarked] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedTurnIndex, setCopiedTurnIndex] = useState(null);
   const [quoteExpanded, setQuoteExpanded] = useState(false);
   const [learningConcept, setLearningConcept] = useState(null);
 
   const abortControllerRef = useRef(null);
+  const followUpAbortRef = useRef(null);
 
   // Position & Drag state
   const [position, setPosition] = useState({ top: 100, left: 100 });
@@ -215,6 +224,23 @@ export function FloatingOverlay({ context, onClose }) {
 
   const cardRef = useRef(null);
   const scrollContainerRef = useRef(null);
+
+  // ─── Detect Different Selection & Reset Session ───────────────────
+  useEffect(() => {
+    if (!isSameSelectionSession(sessionRef.current, context)) {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (followUpAbortRef.current) followUpAbortRef.current.abort();
+
+      const newSess = createExplanationSession(context, mode);
+      setSession(newSess);
+      sessionRef.current = newSess;
+      setCurrentContext(context);
+      setThread([]);
+      setStreamingText('');
+      setAskingFollowUp(false);
+      setStatus('loading');
+    }
+  }, [context, mode]);
 
   // ─── Initial Position Calculation ──────────────────────────────────
   useEffect(() => {
@@ -247,7 +273,33 @@ export function FloatingOverlay({ context, onClose }) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    setStatus('cancelled');
+    if (followUpAbortRef.current) {
+      followUpAbortRef.current.abort();
+      followUpAbortRef.current = null;
+    }
+    setStatus((prev) => (prev === 'loading' || prev === 'streaming' ? 'cancelled' : prev));
+    setAskingFollowUp(false);
+  }, []);
+
+  const handleCancelFollowUp = useCallback(() => {
+    if (followUpAbortRef.current) {
+      followUpAbortRef.current.abort();
+      followUpAbortRef.current = null;
+    }
+    setAskingFollowUp(false);
+    setThread((prev) => {
+      const copy = [...prev];
+      const last = copy[copy.length - 1];
+      if (last && last.sender === 'curio') {
+        copy[copy.length - 1] = {
+          ...last,
+          isStreaming: false,
+          status: 'cancelled',
+          text: last.text ? `${last.text}\n\n*(Generation stopped)*` : '*(Generation stopped)*',
+        };
+      }
+      return copy;
+    });
   }, []);
 
   // ─── Trigger Real-Time Streaming Generation ────────────────────────
@@ -407,8 +459,8 @@ export function FloatingOverlay({ context, onClose }) {
     setQuestionInput('');
     setAskingFollowUp(true);
 
-    const userMsg = { sender: 'user', text: q, timestamp: Date.now() };
-    const curioMsg = { sender: 'curio', text: '', isStreaming: true, timestamp: Date.now() };
+    const userMsg = { id: `u_${Date.now()}`, sender: 'user', role: 'user', text: q, timestamp: Date.now() };
+    const curioMsg = { id: `c_${Date.now()}`, sender: 'curio', role: 'assistant', text: '', isStreaming: true, timestamp: Date.now(), status: 'streaming' };
 
     setThread((prev) => [...prev, userMsg, curioMsg]);
 
@@ -419,23 +471,32 @@ export function FloatingOverlay({ context, onClose }) {
     }, 50);
 
     const followUpAc = new AbortController();
+    followUpAbortRef.current = followUpAc;
+
+    const bounded = getBoundedHistory(sessionRef.current, 6);
+    let finalAnswer = '';
 
     await streamFollowUpFromBackend(
       {
+        sessionId: sessionRef.current.sessionId,
         question: q,
         context: currentContext,
         previousExplanation: streamingText,
-        conversationHistory: thread,
+        conversationHistory: bounded.recentHistory,
+        summary: bounded.summary,
         level: mode,
+        provider: providerInfo.name || 'gemini',
+        model: providerInfo.model || null,
       },
       {
         onStart: () => {},
         onDelta: (_delta, fullText) => {
+          finalAnswer = fullText;
           setThread((prev) => {
             const copy = [...prev];
             const last = copy[copy.length - 1];
             if (last && last.sender === 'curio') {
-              copy[copy.length - 1] = { ...last, text: fullText, isStreaming: true };
+              copy[copy.length - 1] = { ...last, text: fullText, isStreaming: true, status: 'streaming' };
             }
             return copy;
           });
@@ -448,11 +509,16 @@ export function FloatingOverlay({ context, onClose }) {
             const copy = [...prev];
             const last = copy[copy.length - 1];
             if (last && last.sender === 'curio') {
-              copy[copy.length - 1] = { ...last, isStreaming: false };
+              copy[copy.length - 1] = { ...last, isStreaming: false, status: 'completed' };
             }
             return copy;
           });
+          addSessionMessage(sessionRef.current, { role: 'user', content: q });
+          if (finalAnswer) {
+            addSessionMessage(sessionRef.current, { role: 'assistant', content: finalAnswer });
+          }
           setAskingFollowUp(false);
+          followUpAbortRef.current = null;
         },
         onError: (err) => {
           setThread((prev) => {
@@ -461,17 +527,49 @@ export function FloatingOverlay({ context, onClose }) {
             if (last && last.sender === 'curio') {
               copy[copy.length - 1] = {
                 ...last,
-                text: `⚠️ ${err.message || 'Error generating answer.'}`,
+                text: finalAnswer ? `${finalAnswer}\n\n⚠️ *${err.message || 'Stream interrupted.'}*` : `⚠️ ${err.message || 'Error generating answer.'}`,
                 isStreaming: false,
+                status: 'error',
+                error: err.message,
               };
             }
             return copy;
           });
           setAskingFollowUp(false);
+          followUpAbortRef.current = null;
         },
       },
       followUpAc.signal
     );
+  };
+
+  const handleRetryFollowUp = (userQuestionText, turnIndex) => {
+    setThread((prev) => prev.slice(0, Math.max(0, turnIndex)));
+    handleFollowUpSubmit(userQuestionText);
+  };
+
+  const handleCopyTurn = async (text, turnIndex) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedTurnIndex(turnIndex);
+      setTimeout(() => setCopiedTurnIndex(null), 2000);
+    } catch (err) {
+      console.warn('Copy failed', err);
+    }
+  };
+
+  const handleClearConversation = () => {
+    if (followUpAbortRef.current) {
+      followUpAbortRef.current.abort();
+      followUpAbortRef.current = null;
+    }
+    setThread([]);
+    setAskingFollowUp(false);
+    setSession((prev) => ({
+      ...prev,
+      messages: [],
+      summary: '',
+    }));
   };
 
   // Content type badge color
@@ -563,7 +661,7 @@ export function FloatingOverlay({ context, onClose }) {
 
         {/* Right: Actions (Stop, Bookmark, Copy, Close) */}
         <div className="flex items-center gap-1">
-          {(status === 'loading' || status === 'streaming') && (
+          {(status === 'loading' || status === 'streaming' || askingFollowUp) && (
             <button
               onClick={handleCancel}
               title="Stop generation"
@@ -761,36 +859,102 @@ export function FloatingOverlay({ context, onClose }) {
             {/* ─── Conversation Thread (Follow-ups) ───────────────────── */}
             {thread.length > 0 && (
               <div className="pt-3 border-t border-zinc-800/60 space-y-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3 text-zinc-400" />
-                  Follow-Up Discussion
-                </span>
-                {thread.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`p-2.5 rounded-xl text-xs ${
-                      msg.sender === 'user'
-                        ? 'bg-zinc-800/80 text-zinc-200 ml-4 border border-zinc-700/50'
-                        : 'bg-zinc-900/90 text-zinc-300 mr-2 border border-zinc-800/70'
-                    }`}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <MessageSquare className="w-3 h-3 text-zinc-400" />
+                    Continuous Conversation
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-zinc-800 text-zinc-400 font-mono">
+                      {Math.ceil(thread.length / 2)} turn{Math.ceil(thread.length / 2) === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                  <button
+                    onClick={handleClearConversation}
+                    title="Clear follow-up conversation history"
+                    className="text-[10px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-zinc-800 transition-colors"
                   >
-                    <div className="text-[10px] text-zinc-500 font-semibold mb-1">
-                      {msg.sender === 'user' ? 'You' : 'Curio'}
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Clear chat</span>
+                  </button>
+                </div>
+                {thread.map((msg, i) => {
+                  const isUser = msg.sender === 'user' || msg.role === 'user';
+                  const isError = msg.status === 'error';
+                  const isCancelled = msg.status === 'cancelled';
+                  const prevUserMsg = !isUser && i > 0 ? (thread[i - 1].text || thread[i - 1].content) : '';
+
+                  return (
+                    <div
+                      key={msg.id || i}
+                      className={`p-2.5 rounded-xl text-xs relative group transition-all ${
+                        isUser
+                          ? 'bg-zinc-800/80 text-zinc-200 ml-4 border border-zinc-700/50'
+                          : isError
+                          ? 'bg-red-950/40 text-red-200 mr-2 border border-red-800/50'
+                          : 'bg-zinc-900/90 text-zinc-300 mr-2 border border-zinc-800/70'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] text-zinc-500 font-semibold mb-1">
+                        <span>{isUser ? 'You' : 'Curio'}</span>
+                        {!isUser && !msg.isStreaming && (
+                          <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleCopyTurn(msg.text, i)}
+                              title="Copy this response"
+                              className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1"
+                            >
+                              {copiedTurnIndex === i ? (
+                                <>
+                                  <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                  <span className="text-[9px] text-emerald-400">Copied</span>
+                                </>
+                              ) : (
+                                <Copy className="w-2.5 h-2.5" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {isUser ? (
+                        <div className="whitespace-pre-line leading-relaxed">{msg.text}</div>
+                      ) : (
+                        <>
+                          <MarkdownRenderer markdown={msg.text} isStreaming={msg.isStreaming} />
+                          {(isError || isCancelled) && prevUserMsg && (
+                            <div className="mt-2 pt-2 border-t border-zinc-800/60 flex items-center justify-between">
+                              <span className="text-[10px] text-zinc-500">
+                                {isCancelled ? 'Generation stopped.' : 'Answer interrupted.'}
+                              </span>
+                              <button
+                                onClick={() => handleRetryFollowUp(prevUserMsg, i - 1)}
+                                className="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-200 flex items-center gap-1 font-medium transition-colors"
+                              >
+                                <RefreshCw className="w-2.5 h-2.5 text-brand-400" />
+                                <span>Retry question</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                    {msg.sender === 'user' ? (
-                      <div className="whitespace-pre-line leading-relaxed">{msg.text}</div>
-                    ) : (
-                      <MarkdownRenderer markdown={msg.text} isStreaming={msg.isStreaming} />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {askingFollowUp && (
-              <div className="p-2.5 rounded-xl bg-zinc-900/60 text-zinc-400 text-xs flex items-center gap-2">
-                <RefreshCw className="w-3 h-3 animate-spin text-brand-400" />
-                <span>Thinking through follow-up...</span>
+              <div className="p-2.5 rounded-xl bg-zinc-900/60 text-zinc-400 text-xs flex items-center justify-between border border-zinc-800/50">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-3 h-3 animate-spin text-brand-400" />
+                  <span>Synthesizing follow-up response...</span>
+                </div>
+                <button
+                  onClick={handleCancelFollowUp}
+                  className="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 hover:text-white flex items-center gap-1 transition-colors"
+                >
+                  <Square className="w-2.5 h-2.5 fill-current" />
+                  <span>Stop</span>
+                </button>
               </div>
             )}
           </div>

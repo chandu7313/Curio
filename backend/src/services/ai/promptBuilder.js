@@ -194,7 +194,9 @@ export function buildUserPrompt(data) {
  * @param {string} data.selectedText - Original selected text
  * @param {string} [data.surroundingContext] - Original context
  * @param {string} [data.previousExplanation] - Prior explanation text
+ * @param {string} [data.summary] - Summary of earlier conversation turns
  * @param {string} data.question - User's follow-up question
+ * @param {string} [data.sessionId] - Active conversation session ID
  * @returns {string}
  */
 export function buildFollowUpUserPrompt(data) {
@@ -202,16 +204,25 @@ export function buildFollowUpUserPrompt(data) {
     selectedText,
     surroundingContext = '',
     previousExplanation = '',
+    summary = '',
     question,
+    sessionId = '',
   } = data;
 
   const parts = [];
 
-  parts.push(`The user is asking a follow-up question regarding the previously explained topic.`);
+  parts.push(`The user is engaged in a continuous follow-up conversation regarding this selected topic.`);
+  if (sessionId) {
+    parts.push(`Session ID: ${sessionId}`);
+  }
   parts.push(`\n<original_selected_text>\n${selectedText.trim()}\n</original_selected_text>`);
 
   if (surroundingContext) {
     parts.push(`\n<original_context>\n${surroundingContext.trim()}\n</original_context>`);
+  }
+
+  if (summary) {
+    parts.push(`\n<earlier_conversation_summary>\n${summary.trim()}\n</earlier_conversation_summary>`);
   }
 
   if (previousExplanation) {
@@ -219,7 +230,11 @@ export function buildFollowUpUserPrompt(data) {
   }
 
   parts.push(`\n<user_follow_up_question>\n${question.trim()}\n</user_follow_up_question>`);
-  parts.push(`\nAnswer the question directly, maintaining the original learning context.`);
+  parts.push(`\nCRITICAL CONVERSATIONAL INSTRUCTIONS:
+- Directly answer the user's follow-up question in the context of the original selected topic (${selectedText.trim()}).
+- Reference previous explanation points naturally without duplicating the entire explanation.
+- If the user asks for code, comparisons, or alternatives (e.g. "show an example with lambda", "how does map compare to filter"), provide a focused, idiomatic answer with syntax-highlighted code.
+- Maintain the selected explanation depth level.`);
 
   return parts.join('\n');
 }

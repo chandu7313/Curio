@@ -229,16 +229,22 @@ export async function streamFollowUpFromBackend(options, callbacks, signal) {
   const { onStart, onDelta, onDone, onError } = callbacks;
   const baseUrl = await getBackendBaseUrl();
 
+  const history = (options.conversationHistory || []).map((msg) => ({
+    role: (msg.role || (msg.sender === 'user' ? 'user' : 'assistant')),
+    content: msg.content || msg.text || '',
+  })).filter((m) => m.content.trim().length > 0);
+
   const payload = {
-    selectedText: options.context.selectedText,
+    sessionId: options.sessionId,
+    selectedText: options.context.selectedText || options.context.text,
     surroundingContext: options.context.paragraph || options.context.surroundingParagraph || '',
     previousExplanation: options.previousExplanation || '',
-    conversationHistory: (options.conversationHistory || []).map((msg) => ({
-      role: msg.sender === 'user' ? 'user' : 'assistant',
-      content: msg.text,
-    })),
+    summary: options.summary || '',
+    conversationHistory: history,
     question: options.question,
     explanationLevel: options.level || 'intermediate',
+    provider: options.provider,
+    model: options.model,
   };
 
   let response;
@@ -251,17 +257,30 @@ export async function streamFollowUpFromBackend(options, callbacks, signal) {
       body: JSON.stringify(payload),
       signal,
     });
-  } catch (_e) {
+  } catch (err) {
+    if (signal?.aborted) {
+      return;
+    }
     // Offline fallback for follow-up
-    const mockAns = await answerFollowUpQuestion(options.question, options.context);
-    if (onStart) onStart({ requestId: 'mock_fu', provider: 'local' });
-    if (onDelta) onDelta(mockAns.answer, mockAns.answer);
-    if (onDone) onDone({ requestId: 'mock_fu', provider: 'local' });
-    return;
+    try {
+      const mockAns = await answerFollowUpQuestion(options.question, options.context);
+      if (onStart) onStart({ requestId: 'mock_fu', provider: 'local' });
+      if (onDelta) onDelta(mockAns.answer, mockAns.answer);
+      if (onDone) onDone({ requestId: 'mock_fu', provider: 'local' });
+      return;
+    } catch (_fallbackErr) {
+      if (onError) onError({ code: 'OFFLINE', message: err.message || 'Network unreachable', retryable: true });
+      return;
+    }
   }
 
   if (!response.ok || !response.body) {
-    onError({ code: 'SERVER_ERROR', message: `Server error ${response.status}`, retryable: true });
+    let errDetail = `Server error ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.error) errDetail = errJson.error;
+    } catch (_) {}
+    if (onError) onError({ code: 'SERVER_ERROR', message: errDetail, retryable: true });
     return;
   }
 

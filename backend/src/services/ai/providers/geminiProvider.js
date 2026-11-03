@@ -225,20 +225,41 @@ export class GeminiProvider {
 
     const contents = [];
 
-    // Add recent conversation history if provided (capped at last 6 turns)
-    const history = (options.conversationHistory || []).slice(-6);
-    for (const msg of history) {
-      contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-      });
+    // Ensure conversation starts with user and alternates properly
+    const rawHistory = (options.conversationHistory || []).slice(-6);
+    const validHistory = [];
+    for (const msg of rawHistory) {
+      if (!msg.content || !msg.content.trim()) continue;
+      const role = msg.role === 'assistant' ? 'model' : 'user';
+      if (validHistory.length === 0 && role === 'model') {
+        validHistory.push({
+          role: 'user',
+          parts: [{ text: `Original topic: ${options.selectedText}` }],
+        });
+      }
+      if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === role) {
+        validHistory[validHistory.length - 1].parts[0].text += `\n\n${msg.content}`;
+      } else {
+        validHistory.push({
+          role,
+          parts: [{ text: msg.content }],
+        });
+      }
     }
 
-    // Add current follow-up prompt
-    contents.push({
-      role: 'user',
-      parts: [{ text: userPrompt }],
-    });
+    for (const item of validHistory) {
+      contents.push(item);
+    }
+
+    // Add current follow-up prompt ensuring alternation
+    if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+      contents[contents.length - 1].parts[0].text += `\n\n${userPrompt}`;
+    } else {
+      contents.push({
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      });
+    }
 
     const endpoint = `${this.baseUrl}/${activeModel}:streamGenerateContent?alt=sse&key=${this.apiKey}`;
 
