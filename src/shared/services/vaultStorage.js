@@ -90,6 +90,24 @@ export const storageAdapter = {
     }
     return true;
   },
+
+  async clear() {
+    inMemoryStore.clear();
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.clear();
+      } catch (_) {}
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      try {
+        await chrome.storage.local.clear();
+        return true;
+      } catch (err) {
+        console.warn('[Curio Vault] chrome.storage.local clear failed:', err);
+      }
+    }
+    return true;
+  },
 };
 
 /**

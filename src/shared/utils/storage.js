@@ -1,84 +1,38 @@
 /**
  * Curio — Safe Typed Storage Layer (JavaScript ES Modules)
- * Manages chrome.storage.sync for preferences and chrome.storage.local for credentials
+ *
+ * Bridges settings storage with centralized settingsService.
+ *
+ * @module shared/utils/storage
  */
 
-import { DEFAULT_SETTINGS, AppSettingsSchema } from '../types/index.js';
-import { STORAGE_KEYS } from '../constants/index.js';
+import { getSettings, updateSettings } from '../services/settingsService.js';
+import { DEFAULT_SETTINGS } from '../types/index.js';
 
 /**
- * Retrieve user settings, merging sync preferences with local credentials
+ * Retrieve user settings.
  * @returns {Promise<import('../types/index.js').AppSettings>}
  */
 export async function getStoredSettings() {
-  return new Promise((resolve) => {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      resolve({ ...DEFAULT_SETTINGS });
-      return;
-    }
-
-    // Load general preferences from sync
-    chrome.storage.sync.get([STORAGE_KEYS.SETTINGS], (syncResult) => {
-      const syncSettings = syncResult[STORAGE_KEYS.SETTINGS] || {};
-
-      // Load sensitive credentials from local storage
-      chrome.storage.local.get(['curio_api_key'], (localResult) => {
-        const apiKey = localResult['curio_api_key'] || '';
-
-        const merged = {
-          ...DEFAULT_SETTINGS,
-          ...syncSettings,
-          apiKey,
-        };
-
-        const parsed = AppSettingsSchema.safeParse(merged);
-        resolve(parsed.success ? parsed.data : { ...DEFAULT_SETTINGS, apiKey });
-      });
-    });
-  });
+  try {
+    return await getSettings();
+  } catch (err) {
+    console.warn('[Curio Storage] Read failed, returning defaults:', err);
+    return { ...DEFAULT_SETTINGS };
+  }
 }
 
 /**
- * Persist user settings to sync and local storage
+ * Persist user settings.
  * @param {Partial<import('../types/index.js').AppSettings>} newSettings
  * @returns {Promise<boolean>}
  */
 export async function saveStoredSettings(newSettings) {
-  return new Promise((resolve) => {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      resolve(false);
-      return;
-    }
-
-    const { apiKey, ...syncSafeSettings } = newSettings;
-
-    // Save non-sensitive settings to sync
-    chrome.storage.sync.get([STORAGE_KEYS.SETTINGS], (existingSync) => {
-      const current = existingSync[STORAGE_KEYS.SETTINGS] || {};
-      const updatedSync = { ...current, ...syncSafeSettings };
-
-      chrome.storage.sync.set({ [STORAGE_KEYS.SETTINGS]: updatedSync }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('[Curio Storage] Failed to save sync settings:', chrome.runtime.lastError);
-          resolve(false);
-          return;
-        }
-
-        // If apiKey was provided (even empty string), save securely to local storage
-        if (apiKey !== undefined) {
-          chrome.storage.local.set({ curio_api_key: apiKey }, () => {
-            if (chrome.runtime.lastError) {
-              console.error('[Curio Storage] Failed to save api key to local storage:', chrome.runtime.lastError);
-              resolve(false);
-              return;
-            }
-            resolve(true);
-          });
-        } else {
-          resolve(true);
-        }
-      });
-    });
-  });
+  try {
+    await updateSettings(newSettings);
+    return true;
+  } catch (err) {
+    console.warn('[Curio Storage] Save failed:', err);
+    return false;
+  }
 }
-

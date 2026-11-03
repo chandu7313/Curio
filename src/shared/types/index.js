@@ -16,11 +16,34 @@ export const ExplanationStyleSchema = z.enum(['concise', 'detailed', 'simple']);
 export const ThemeModeSchema = z.enum(['light', 'dark', 'system']);
 
 export const AppSettingsSchema = z.object({
-  shortcut: z.string().default('Alt+Shift+E'),
+  // General
   theme: ThemeModeSchema.default('system'),
+  language: z.enum(['en', 'es', 'fr', 'de', 'zh', 'ja', 'hi']).default('en'),
+  defaultLevel: z.enum(['beginner', 'intermediate', 'advanced']).default('intermediate'),
+  windowBehavior: z.enum(['near_selection', 'remember_last', 'top_right', 'center']).default('near_selection'),
+  animationPreference: z.enum(['full', 'reduced', 'disabled']).default('full'),
+
+  // AI & Intelligence
   aiProvider: AIProviderSchema.default('gemini'),
   apiKey: z.string().default(''),
   model: z.string().default('gemini-2.0-flash'),
+  responseDetail: z.enum(['concise', 'standard', 'comprehensive']).default('standard'),
+  cancellationBehavior: z.enum(['keep_partial', 'discard_cancelled']).default('keep_partial'),
+
+  // Keyboard Shortcuts (Configured via chrome://extensions/shortcuts)
+  shortcut: z.string().default('Alt+Shift+E'),
+
+  // Privacy & Retention
+  saveHistory: z.boolean().default(true),
+  autoSaveBookmarks: z.boolean().default(false),
+  localRetentionDays: z.number().default(0),
+
+  // Appearance & Density
+  compactMode: z.boolean().default(false),
+  overlayWidth: z.enum(['compact', 'standard', 'wide']).default('standard'),
+  fontSize: z.enum(['small', 'medium', 'large']).default('medium'),
+
+  // Legacy Parameters
   explanationStyle: ExplanationStyleSchema.default('concise'),
   enabled: z.boolean().default(true),
   showFloatingButton: z.boolean().default(true),
@@ -188,11 +211,34 @@ export const ExtensionMessageSchema = z.discriminatedUnion('type', [
  * @type {AppSettings}
  */
 export const DEFAULT_SETTINGS = Object.freeze({
-  shortcut: 'Alt+Shift+E',
+  // General
   theme: 'system',
+  language: 'en',
+  defaultLevel: 'intermediate',
+  windowBehavior: 'near_selection',
+  animationPreference: 'full',
+
+  // AI & Intelligence
   aiProvider: 'gemini',
   apiKey: '',
   model: 'gemini-2.0-flash',
+  responseDetail: 'standard',
+  cancellationBehavior: 'keep_partial',
+
+  // Keyboard Shortcuts
+  shortcut: 'Alt+Shift+E',
+
+  // Privacy & Retention
+  saveHistory: true,
+  autoSaveBookmarks: false,
+  localRetentionDays: 0,
+
+  // Appearance & Density
+  compactMode: false,
+  overlayWidth: 'standard',
+  fontSize: 'medium',
+
+  // Legacy Parameters
   explanationStyle: 'concise',
   enabled: true,
   showFloatingButton: true,

@@ -69,6 +69,8 @@ import {
   updateUnderstandingLevel,
   toggleSaveConcept,
 } from '../../shared/services/learningService.js';
+import { getSettings, subscribeToSettings } from '../../shared/services/settingsService.js';
+import { DEFAULT_SETTINGS } from '../../shared/types/index.js';
 
 /**
  * Lightweight Code Block with Line Numbers & Copy Action
@@ -193,6 +195,7 @@ function LoadingSkeleton() {
  * Main Floating Overlay Component
  */
 export function FloatingOverlay({ context, onClose }) {
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [currentContext, setCurrentContext] = useState(context);
   const [session, setSession] = useState(() => createExplanationSession(context, 'intermediate'));
   const sessionRef = useRef(session);
@@ -227,6 +230,30 @@ export function FloatingOverlay({ context, onClose }) {
   const cardRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  // ─── Synchronize Settings ──────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    getSettings().then((s) => {
+      if (mounted && s) {
+        setSettings(s);
+        if (s.defaultLevel) {
+          setMode(s.defaultLevel);
+        }
+      }
+    });
+
+    const unsubscribe = subscribeToSettings((newSettings) => {
+      if (mounted && newSettings) {
+        setSettings(newSettings);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   // ─── Detect Different Selection & Reset Session ───────────────────
   useEffect(() => {
     if (!isSameSelectionSession(sessionRef.current, context)) {
@@ -246,14 +273,32 @@ export function FloatingOverlay({ context, onClose }) {
 
   // ─── Initial Position Calculation ──────────────────────────────────
   useEffect(() => {
+    const widthMap = { compact: 380, standard: 450, wide: 540 };
+    const targetWidth = widthMap[settings.overlayWidth] || 450;
     const rect = currentContext.boundingBox || currentContext.selectionRect || currentContext.rect;
-    const coords = calculateOverlayPosition(rect, {
-      width: 450,
-      height: 520,
-    });
-    setPosition({ top: coords.top, left: coords.left });
-    setMaxHeight(coords.maxHeight);
-  }, [currentContext]);
+
+    if (settings.windowBehavior === 'top_right') {
+      const pad = 24;
+      const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      setPosition({ top: pad, left: Math.max(pad, viewportW - targetWidth - pad) });
+      setMaxHeight(520);
+    } else if (settings.windowBehavior === 'center') {
+      const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768;
+      setPosition({
+        top: Math.max(20, Math.round((viewportH - 520) / 2)),
+        left: Math.max(20, Math.round((viewportW - targetWidth) / 2)),
+      });
+      setMaxHeight(520);
+    } else {
+      const coords = calculateOverlayPosition(rect, {
+        width: targetWidth,
+        height: 520,
+      });
+      setPosition({ top: coords.top, left: coords.left });
+      setMaxHeight(coords.maxHeight);
+    }
+  }, [currentContext, settings.windowBehavior, settings.overlayWidth]);
 
   // ─── Check Previous Learning History ───────────────────────────────
   useEffect(() => {
@@ -279,9 +324,12 @@ export function FloatingOverlay({ context, onClose }) {
       followUpAbortRef.current.abort();
       followUpAbortRef.current = null;
     }
+    if (settings.cancellationBehavior === 'discard_cancelled') {
+      setStreamingText('');
+    }
     setStatus((prev) => (prev === 'loading' || prev === 'streaming' ? 'cancelled' : prev));
     setAskingFollowUp(false);
-  }, []);
+  }, [settings.cancellationBehavior]);
 
   const handleCancelFollowUp = useCallback(() => {
     if (followUpAbortRef.current) {
@@ -332,19 +380,42 @@ export function FloatingOverlay({ context, onClose }) {
         },
         onDone: async ({ provider, usage }) => {
           setStatus('completed');
-          // Record concept in personal learning intelligence
-          try {
-            const recorded = await recordConceptExploration(currentContext, {
-              title: currentContext.selectedText,
-              summary: currentAccumulated.slice(0, 300),
-              mode,
-            });
-            if (recorded) {
-              setLearningConcept(recorded);
-              setBookmarked(recorded.isSaved);
+          // Record concept in personal learning intelligence if saveHistory is enabled
+          if (settings.saveHistory !== false) {
+            try {
+              const recorded = await recordConceptExploration(currentContext, {
+                title: currentContext.selectedText,
+                summary: currentAccumulated.slice(0, 300),
+                mode,
+              });
+              if (recorded) {
+                setLearningConcept(recorded);
+                setBookmarked(recorded.isSaved);
+              }
+            } catch (err) {
+              console.warn('[Curio] Failed to record learning concept:', err);
             }
-          } catch (err) {
-            console.warn('[Curio] Failed to record learning concept:', err);
+          }
+          // Auto-save bookmarks to vault if enabled in settings
+          if (settings.autoSaveBookmarks) {
+            try {
+              const rawText = (currentContext.selectedText || currentContext.text || '').trim();
+              if (rawText) {
+                await saveVaultConcept({
+                  id: learningConcept?.id,
+                  title: currentContext.selectedText,
+                  selectedText: rawText,
+                  explanation: currentAccumulated,
+                  category: currentContext.category || 'General',
+                  pageTitle: currentContext.pageTitle || (typeof document !== 'undefined' ? document.title : '') || '',
+                  pageUrl: currentContext.pageUrl || (typeof window !== 'undefined' ? window.location.href : '') || '',
+                  understandingStatus: 'not_reviewed',
+                });
+                setBookmarked(true);
+              }
+            } catch (err) {
+              console.warn('[Curio] Failed to auto-save concept:', err);
+            }
           }
         },
         onError: (err) => {
@@ -645,13 +716,39 @@ export function FloatingOverlay({ context, onClose }) {
   const previewSnippet = currentContext.selectedText || '';
   const isSnippetLong = previewSnippet.length > 90;
 
+  const overlayWidthClass = useMemo(() => {
+    switch (settings.overlayWidth) {
+      case 'compact':
+        return 'w-[380px]';
+      case 'wide':
+        return 'w-[540px]';
+      case 'standard':
+      default:
+        return 'w-[450px]';
+    }
+  }, [settings.overlayWidth]);
+
+  const fontSizeClass = useMemo(() => {
+    switch (settings.fontSize) {
+      case 'small':
+        return 'text-[11px]';
+      case 'large':
+        return 'text-[14px]';
+      case 'medium':
+      default:
+        return 'text-xs';
+    }
+  }, [settings.fontSize]);
+
+  const animationClass = settings.animationPreference === 'disabled' ? '' : 'curio-animate-enter';
+
   return (
     <div
       ref={cardRef}
       role="dialog"
       aria-modal="true"
       aria-label="Curio AI Context Explanation"
-      className="curio-interactive fixed z-[2147483647] flex flex-col w-[450px] max-w-[92vw] rounded-2xl bg-zinc-950/95 border border-zinc-800/90 shadow-2xl shadow-black/90 backdrop-blur-xl text-zinc-100 curio-animate-enter overflow-hidden font-sans select-text"
+      className={`curio-interactive fixed z-[2147483647] flex flex-col ${overlayWidthClass} max-w-[92vw] rounded-2xl bg-zinc-950/95 border border-zinc-800/90 shadow-2xl shadow-black/90 backdrop-blur-xl text-zinc-100 ${animationClass} ${fontSizeClass} overflow-hidden font-sans select-text`}
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
