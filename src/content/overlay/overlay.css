@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Shadow DOM Host & Reset ───────────────────────────────────────── */
+:host {
+  all: initial;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Allow interactive events on the overlay card */
+.curio-interactive {
+  pointer-events: auto;
+}
+
+/* ─── Custom Premium Dark Scrollbars ────────────────────────────────── */
+.curio-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.curio-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.curio-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+.curio-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ─── Keyframe Animations ───────────────────────────────────────────── */
+@keyframes curio-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes curio-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes curio-pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.curio-animate-enter {
+  animation: curio-fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.curio-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: curio-shimmer 1.8s infinite ease-in-out;
+}
+
+.curio-pulse-glow {
+  animation: curio-pulse-glow 2s infinite ease-in-out;
+}
+
