@@ -284,14 +284,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // This in-content listener is a fallback for pages where chrome.commands
 // events may not propagate to the content script.
 
-window.addEventListener(
-  'keydown',
-  (event) => {
-    if (event.altKey && event.shiftKey && (event.key === 'e' || event.key === 'E')) {
-      event.preventDefault();
-      event.stopPropagation();
-      handleTriggerSelectionFlow();
-    }
-  },
-  { capture: true }
-);
+function onKeydownTrigger(event) {
+  if (event.altKey && event.shiftKey && (event.key === 'e' || event.key === 'E')) {
+    event.preventDefault();
+    event.stopPropagation();
+    handleTriggerSelectionFlow();
+  }
+}
+
+window.addEventListener('keydown', onKeydownTrigger, { capture: true });
+document.addEventListener('keydown', onKeydownTrigger, { capture: true });
+document.addEventListener('curio:trigger', () => handleTriggerSelectionFlow(), { capture: true });
