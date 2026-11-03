@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # ─── PostgreSQL Database ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: curio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: curio
+      POSTGRES_PASSWORD: curio_secret
+      POSTGRES_DB: curio_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - curio_pgdata:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curio -d curio_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Curio API Server ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: curio-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://curio:curio_secret@postgres:5432/curio_db
+      CORS_ORIGINS: http://localhost:5173
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX: 100
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  curio_pgdata:
+    driver: local
+
