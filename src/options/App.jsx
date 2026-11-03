@@ -113,8 +113,15 @@ export const App = () => {
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-sm">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center shadow-sm p-1 overflow-hidden">
+              <img
+                src={typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL('icons/icon-48.png') : '/icons/icon-48.png'}
+                alt="Curio logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
             </div>
             <div>
               <h1 className="font-semibold text-base text-slate-100">Curio</h1>

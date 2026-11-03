@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/icons/logo.png" alt="Curio Logo" width="120" height="120" style="border-radius: 24px;" />
+</p>
+
 # Curio — Universal In-Situ AI Browser Extension & Personal Learning Assistant
 
 > **Intelligent, in-situ context comprehension directly in your reading flow.**  

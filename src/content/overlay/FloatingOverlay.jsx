@@ -537,7 +537,14 @@ export function FloatingOverlay({ context, onClose }) {
         <div className="flex items-center gap-2">
           <GripHorizontal className="w-4 h-4 text-zinc-500 hover:text-zinc-300 transition-colors" />
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-brand-400 curio-pulse-glow" />
+            <img
+              src={typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL('icons/icon-16.png') : '/icons/icon-16.png'}
+              alt="Curio logo"
+              className="w-4 h-4 object-contain rounded-sm shadow-sm"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
             <span className="text-xs font-semibold tracking-wider text-zinc-100 uppercase">
               Curio
             </span>
