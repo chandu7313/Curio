@@ -50,7 +50,8 @@ import {
   addSessionMessage,
   getBoundedHistory,
 } from '../../shared/services/sessionManager.js';
-import { saveVaultConcept } from '../../shared/services/vaultStorage.js';
+import { saveVaultConcept, updateVaultConcept } from '../../shared/services/vaultStorage.js';
+import { getCuratedRecommendations } from '../../shared/services/knowledgeGraph.js';
 import { calculateOverlayPosition, clampDragPosition } from './positioning.js';
 import {
   generateMockExplanation,
@@ -463,7 +464,14 @@ export function FloatingOverlay({ context, onClose }) {
     if (updated) {
       setLearningConcept(updated);
     }
+    await updateVaultConcept(learningConcept.id, {
+      understandingStatus: level,
+    });
   };
+
+  const recommendations = useMemo(() => {
+    return getCuratedRecommendations(currentContext.selectedText || '');
+  }, [currentContext.selectedText]);
 
   const handlePivotConcept = (relatedTerm) => {
     setThread([]);
@@ -853,6 +861,40 @@ export function FloatingOverlay({ context, onClose }) {
               isStreaming={status === 'streaming'}
             />
 
+            {/* ─── Curated Next Steps & Recommendations ──────────────── */}
+            {recommendations.length > 0 && (
+              <div className="pt-2.5 pb-1 border-t border-zinc-800/60 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+                    Recommended Next Steps
+                  </span>
+                  <span className="text-[9px] text-zinc-500 font-normal lowercase">learning path</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {recommendations.map((rec, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handlePivotConcept(rec.term)}
+                      className="group flex flex-col p-2 rounded-lg bg-zinc-900/90 hover:bg-zinc-850 border border-zinc-800/80 hover:border-brand-500/50 text-left transition-all"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-zinc-200 text-[11px] font-medium group-hover:text-brand-300">
+                          {rec.action}
+                        </span>
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-zinc-800 text-zinc-400 font-mono">
+                          {rec.relation}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">
+                        {rec.reason}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ─── Knowledge Connections (Concept Graph) ──────────────── */}
             {learningConcept?.relatedConcepts?.length > 0 && (
               <div className="pt-2.5 pb-1 border-t border-zinc-800/60 space-y-1.5">
@@ -1001,7 +1043,7 @@ export function FloatingOverlay({ context, onClose }) {
             <button
               onClick={() => handleSetUnderstanding('understood')}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
-                learningConcept.understandingLevel === 'understood'
+                learningConcept.understandingLevel === 'understood' || learningConcept.understandingStatus === 'understood'
                   ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/80 shadow-sm'
                   : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:bg-zinc-800'
               }`}
@@ -1011,16 +1053,28 @@ export function FloatingOverlay({ context, onClose }) {
               <span>Understood</span>
             </button>
             <button
-              onClick={() => handleSetUnderstanding('need_explanation')}
+              onClick={() => handleSetUnderstanding('learning')}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
-                learningConcept.understandingLevel === 'need_explanation'
+                learningConcept.understandingLevel === 'learning' || learningConcept.understandingLevel === 'reviewing' || learningConcept.understandingStatus === 'learning'
                   ? 'bg-amber-950 text-amber-300 border border-amber-700/80 shadow-sm'
                   : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:bg-zinc-800'
               }`}
-              title="Need more explanation (flag for review)"
+              title="Actively learning this concept"
             >
-              <HelpCircle className="w-3 h-3 text-amber-400" />
-              <span>Review</span>
+              <Clock className="w-3 h-3 text-amber-400" />
+              <span>Learning</span>
+            </button>
+            <button
+              onClick={() => handleSetUnderstanding('needs_revision')}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                learningConcept.understandingLevel === 'needs_revision' || learningConcept.understandingLevel === 'need_explanation' || learningConcept.understandingStatus === 'needs_revision'
+                  ? 'bg-rose-950 text-rose-300 border border-rose-700/80 shadow-sm'
+                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:bg-zinc-800'
+              }`}
+              title="Flag for revision"
+            >
+              <HelpCircle className="w-3 h-3 text-rose-400" />
+              <span>Revision</span>
             </button>
           </div>
         </div>

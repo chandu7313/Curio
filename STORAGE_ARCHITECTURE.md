@@ -216,3 +216,4 @@ Exports the full vault state formatted for backup or transfer:
 - **Chrome Storage Quota**: Default `chrome.storage.local` provides 10 MB of uncompressed JSON storage, which comfortably accommodates 10,000+ detailed concepts and code snippets.
 - **Code Block Extraction**: Fenced code blocks are parsed cleanly into structured objects, avoiding redundant HTML overhead.
 - **Graceful Quota Handling**: If storage limit errors occur, the adapter catches the exception, logs a warning, and protects against silent state corruption.
+

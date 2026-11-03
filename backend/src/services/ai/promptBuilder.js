@@ -239,3 +239,69 @@ export function buildFollowUpUserPrompt(data) {
   return parts.join('\n');
 }
 
+/**
+ * Build prompt for structured concept relationship and learning analysis.
+ *
+ * @param {Object} data
+ * @param {string} data.term - The concept name
+ * @param {string} [data.context] - Surrounding text context
+ * @param {string} [data.category] - Inferred domain category
+ * @returns {string}
+ */
+export function buildConceptAnalysisPrompt(data) {
+  const { term, context = '', category = '' } = data;
+
+  return `You are Curio's Concept Relationship & Adaptive Learning Intelligence.
+Analyze the following technical concept and output a clean, valid JSON object detailing its technical relationships, prerequisites, and learning recommendations.
+
+Concept: "${term.trim()}"
+${context ? `Context: "${context.trim().slice(0, 500)}"` : ''}
+${category ? `Category: "${category.trim()}"` : ''}
+
+Respond ONLY with valid, parseable JSON matching this exact structure:
+{
+  "category": "${category || 'Domain (e.g. Python, React, JavaScript, Architecture, Algorithms, Security, Web Standards)'}",
+  "relationships": [
+    {
+      "term": "Target Concept Name",
+      "relation": "prerequisite",
+      "reason": "Clear technical reason why this must be understood first"
+    },
+    {
+      "term": "Target Concept Name",
+      "relation": "related",
+      "reason": "How this concept connects in practice"
+    },
+    {
+      "term": "Target Concept Name",
+      "relation": "advanced",
+      "reason": "Natural deeper progression from this concept"
+    },
+    {
+      "term": "Target Concept Name",
+      "relation": "alternative",
+      "reason": "Alternative pattern, syntax or approach"
+    },
+    {
+      "term": "Target Concept Name",
+      "relation": "confused_with",
+      "reason": "Nuanced distinction from frequently conflated concept"
+    }
+  ],
+  "recommendations": [
+    {
+      "term": "Concept Name",
+      "action": "Learn/Explore/Understand action phrase",
+      "reason": "Why the user should explore this next"
+    }
+  ]
+}
+
+STRICT INSTRUCTIONS:
+- Do NOT connect concepts simply because two words co-occur on a page. Only identify true conceptual relationships.
+- Use ONLY these valid relation types: "prerequisite", "related", "advanced", "alternative", "confused_with".
+- Provide 3 to 5 high-signal relationships.
+- Do not output markdown code blocks, preamble, or commentary outside the JSON object.`;
+}
+
+

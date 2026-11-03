@@ -92,3 +92,4 @@ The Knowledge Vault interface is implemented in pure React 19 JSX (`src/options/
 - **Zero Remote Tracking**: Saved explanations are never transmitted to external telemetry servers or remote databases.
 - **Explicit User Action Only**: Vault entries are created solely when the user clicks the bookmark icon or imports a file.
 - **Complete Erasure & Exportability**: Users can export their entire knowledge base at any time and wipe all local vault data with one click.
+

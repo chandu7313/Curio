@@ -10,6 +10,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
+import { aiProviderFactory } from '../services/ai/aiProviderFactory.js';
+import { buildConceptAnalysisPrompt } from '../services/ai/promptBuilder.js';
+import {
+  getRelatedConcepts,
+  getCuratedRecommendations,
+  inferConceptCategory,
+  validateRelationship,
+} from '../../src/shared/services/knowledgeGraph.js';
 
 const router = Router();
 
@@ -178,6 +186,109 @@ router.delete('/user/data', async (req, res, next) => {
     return res.json({
       success: true,
       message: 'All personal learning data deleted from server.',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const AnalyzeConceptSchema = z.object({
+  term: z.string().min(1).max(255),
+  context: z.string().optional().default(''),
+  category: z.string().optional().default(''),
+  provider: z.string().optional().default('gemini'),
+});
+
+/**
+ * POST /api/v1/learning/analyze-concept
+ * Analyze a concept to identify its prerequisites, related concepts,
+ * and next recommended learning steps. Reuses Gemini/Groq providers
+ * with fallback to curated knowledge graph rules.
+ */
+router.post('/analyze-concept', async (req, res, next) => {
+  try {
+    const parseResult = AnalyzeConceptSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid concept analysis request',
+        details: parseResult.error.errors,
+      });
+    }
+
+    const { term, context, category: userCat, provider } = parseResult.data;
+    const resolvedCategory = userCat || inferConceptCategory(term);
+
+    // Baseline curated relationships from knowledge graph
+    const curatedRelations = getRelatedConcepts(term, resolvedCategory);
+    const curatedRecs = getCuratedRecommendations(term);
+
+    // AI Provider Orchestration
+    const activeProvider = aiProviderFactory.getProvider(provider);
+    let validatedRelationships = [];
+    let recommendations = curatedRecs;
+
+    if (activeProvider && activeProvider.isAvailable()) {
+      try {
+        const prompt = buildConceptAnalysisPrompt({
+          term,
+          context,
+          category: resolvedCategory,
+        });
+
+        // Collect completion from provider stream or method
+        let rawCompletion = '';
+        if (typeof activeProvider.streamExplanation === 'function') {
+          await activeProvider.streamExplanation(
+            { selectedText: term, surroundingContext: prompt },
+            (delta) => { rawCompletion += delta; }
+          );
+        }
+
+        // Parse structured JSON
+        const jsonMatch = rawCompletion.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed.relationships)) {
+            for (const rel of parsed.relationships) {
+              const val = validateRelationship(term, rel.term, rel.relation, rel.reason || rel.label);
+              if (val.valid) {
+                validatedRelationships.push({
+                  term: rel.term.trim(),
+                  relation: rel.relation.trim().toLowerCase(),
+                  label: rel.reason || rel.label || '',
+                  isInferred: true,
+                });
+              }
+            }
+          }
+          if (Array.isArray(parsed.recommendations) && parsed.recommendations.length > 0) {
+            recommendations = parsed.recommendations.slice(0, 4);
+          }
+        }
+      } catch (aiErr) {
+        // AI call failed or timed out; continue gracefully with curated fallback
+      }
+    }
+
+    // Merge curated relations if AI produced fewer or was offline
+    if (validatedRelationships.length === 0) {
+      validatedRelationships = curatedRelations.map((r) => ({
+        term: r.term,
+        relation: r.relation,
+        label: r.label,
+        isInferred: false,
+      }));
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        term,
+        category: resolvedCategory,
+        relationships: validatedRelationships,
+        recommendations,
+      },
     });
   } catch (err) {
     next(err);

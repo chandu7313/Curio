@@ -1,32 +1,123 @@
 /**
- * Curio — Knowledge Connections & Semantic Relationship Engine
+ * Curio — Adaptive Learning Intelligence & Knowledge Connections Engine
  *
  * Establishes meaningful semantic relationships between technical concepts,
  * programming languages, system architectures, and mathematical constructs.
  *
- * Relationship types:
+ * Core Relationship Types:
  *  - prerequisite: Concept A must be understood before Concept B
- *  - used_with: Concepts commonly combined in idiomatic practice
- *  - alternative: Competing or alternative patterns/libraries
- *  - subconcept: Concept B is a constituent component of Concept A
- *  - paradigm: Higher-level architectural or programming paradigm
+ *  - related: Concepts that are complementary or frequently used together
+ *  - advanced: Natural advanced progression or deeper underlying construct
+ *  - alternative: Competing or alternative approaches/patterns
+ *  - confused_with: Frequently confused or conflated concepts
+ *
+ * Legacy Aliases (Supported for backwards compatibility):
+ *  - used_with -> mapped to 'related'
+ *  - subconcept -> mapped to 'advanced'
+ *  - paradigm -> mapped to 'related'
  *
  * @module services/knowledgeGraph
  */
 
+export const VALID_RELATIONSHIPS = [
+  'prerequisite',
+  'related',
+  'advanced',
+  'alternative',
+  'confused_with',
+  'used_with',
+  'subconcept',
+  'paradigm',
+];
+
 /**
- * @typedef {Object} ConceptRelation
- * @property {string} term - The related concept name
- * @property {'prerequisite'|'used_with'|'alternative'|'subconcept'|'paradigm'} relation - The relationship type
- * @property {string} label - Short readable relationship description
+ * Normalize relationship types to canonical set.
+ * @param {string} rel
+ * @returns {'prerequisite'|'related'|'advanced'|'alternative'|'confused_with'}
  */
+export function normalizeRelationType(rel) {
+  const lower = (rel || '').toLowerCase().trim();
+  switch (lower) {
+    case 'used_with':
+    case 'paradigm':
+      return 'related';
+    case 'subconcept':
+      return 'advanced';
+    case 'prerequisite':
+    case 'related':
+    case 'advanced':
+    case 'alternative':
+    case 'confused_with':
+      return lower;
+    default:
+      return 'related';
+  }
+}
 
 /**
  * Curated knowledge graph database for technical topics.
  * Keys are normalized lower-case search strings.
  */
-const KNOWLEDGE_GRAPH = {
-  // Python ecosystem
+export const KNOWLEDGE_GRAPH = {
+  // Python ecosystem — Iterables, Iterators, Generators, Functional
+  'iterable': [
+    { term: 'Iterators', relation: 'advanced', label: 'Object that produces elements via __next__' },
+    { term: 'Generators', relation: 'advanced', label: 'Functions that yield lazy iterable sequences' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Deferred computation pattern' },
+    { term: 'for loops', relation: 'related', label: 'Core imperative iteration mechanism' },
+    { term: 'Iterators', relation: 'confused_with', label: 'Iterables produce iterators; iterators maintain state' },
+  ],
+  'iterables': [
+    { term: 'Iterators', relation: 'advanced', label: 'Object that produces elements via __next__' },
+    { term: 'Generators', relation: 'advanced', label: 'Functions that yield lazy iterable sequences' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Deferred computation pattern' },
+    { term: 'for loops', relation: 'related', label: 'Core imperative iteration mechanism' },
+    { term: 'Iterators', relation: 'confused_with', label: 'Iterables produce iterators; iterators maintain state' },
+  ],
+  'python iterable': [
+    { term: 'Iterators', relation: 'advanced', label: 'Object that produces elements via __next__' },
+    { term: 'Generators', relation: 'advanced', label: 'Functions that yield lazy iterable sequences' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Deferred computation pattern' },
+    { term: 'for loops', relation: 'related', label: 'Core imperative iteration mechanism' },
+  ],
+  'python iterables': [
+    { term: 'Iterators', relation: 'advanced', label: 'Object that produces elements via __next__' },
+    { term: 'Generators', relation: 'advanced', label: 'Functions that yield lazy iterable sequences' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Deferred computation pattern' },
+    { term: 'for loops', relation: 'related', label: 'Core imperative iteration mechanism' },
+  ],
+  'iterator': [
+    { term: 'Iterables', relation: 'prerequisite', label: 'Must understand collection before stateful traversal' },
+    { term: 'Generators', relation: 'advanced', label: 'Syntactic sugar for writing iterators easily' },
+    { term: 'next() & StopIteration', relation: 'related', label: 'Low-level iteration protocol primitives' },
+    { term: 'Iterables', relation: 'confused_with', label: 'Iterables can be re-iterated; iterators are exhausted' },
+  ],
+  'iterators': [
+    { term: 'Iterables', relation: 'prerequisite', label: 'Must understand collection before stateful traversal' },
+    { term: 'Generators', relation: 'advanced', label: 'Syntactic sugar for writing iterators easily' },
+    { term: 'next() & StopIteration', relation: 'related', label: 'Low-level iteration protocol primitives' },
+    { term: 'Iterables', relation: 'confused_with', label: 'Iterables can be re-iterated; iterators are exhausted' },
+  ],
+  'generator': [
+    { term: 'Iterators', relation: 'prerequisite', label: 'Generators are a special type of iterator' },
+    { term: 'yield statement', relation: 'related', label: 'Pauses function execution and returns value' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Memory-efficient on-demand streaming' },
+    { term: 'Generator expressions', relation: 'alternative', label: 'Inline comprehension-like generator syntax' },
+    { term: 'Coroutines', relation: 'advanced', label: 'Bi-directional generator communication' },
+  ],
+  'generators': [
+    { term: 'Iterators', relation: 'prerequisite', label: 'Generators are a special type of iterator' },
+    { term: 'yield statement', relation: 'related', label: 'Pauses function execution and returns value' },
+    { term: 'Lazy evaluation', relation: 'related', label: 'Memory-efficient on-demand streaming' },
+    { term: 'Generator expressions', relation: 'alternative', label: 'Inline comprehension-like generator syntax' },
+    { term: 'Coroutines', relation: 'advanced', label: 'Bi-directional generator communication' },
+  ],
+  'lazy evaluation': [
+    { term: 'Iterators', relation: 'prerequisite', label: 'Stateful protocol powering lazy streams' },
+    { term: 'Generators', relation: 'related', label: 'Primary Python implementation of laziness' },
+    { term: 'Memory optimization', relation: 'related', label: 'Avoids allocating massive arrays in RAM' },
+    { term: 'Eager evaluation', relation: 'alternative', label: 'Immediate computation of entire result' },
+  ],
   'map': [
     { term: 'Iterables', relation: 'prerequisite', label: 'Operates over iterables' },
     { term: 'Lambda functions', relation: 'used_with', label: 'Frequently paired with lambdas' },
@@ -39,6 +130,12 @@ const KNOWLEDGE_GRAPH = {
     { term: 'List comprehensions', relation: 'alternative', label: 'Pythonic alternative' },
     { term: 'Functional programming', relation: 'paradigm', label: 'Foundational paradigm' },
   ],
+  'filter': [
+    { term: 'Iterables', relation: 'prerequisite', label: 'Filters elements from an iterable collection' },
+    { term: 'Lambda functions', relation: 'related', label: 'Predicate functions passed to filter' },
+    { term: 'List comprehensions', relation: 'alternative', label: '[x for x in list if cond] alternative' },
+    { term: 'Python map', relation: 'confused_with', label: 'map transforms each item; filter selects subset' },
+  ],
   'list comprehension': [
     { term: 'Generator expressions', relation: 'alternative', label: 'Memory-efficient lazy streaming' },
     { term: 'for loops', relation: 'prerequisite', label: 'Imperative foundation' },
@@ -49,8 +146,28 @@ const KNOWLEDGE_GRAPH = {
     { term: 'Higher-order functions', relation: 'used_with', label: 'Primary use context' },
     { term: 'Closures', relation: 'used_with', label: 'Captures enclosing state' },
   ],
+  'lambda functions': [
+    { term: 'Higher-order functions', relation: 'prerequisite', label: 'Functions passed into or returned from functions' },
+    { term: 'Python map()', relation: 'related', label: 'Common transformation consumer' },
+    { term: 'def functions', relation: 'alternative', label: 'Standard named multiline functions' },
+    { term: 'Closures', relation: 'related', label: 'Capturing enclosing lexical scope' },
+  ],
+  'decorator': [
+    { term: 'Closures', relation: 'prerequisite', label: 'Inner wrapper functions capturing outer scope' },
+    { term: 'Higher-order functions', relation: 'prerequisite', label: 'Functions taking and returning functions' },
+    { term: 'functools.wraps', relation: 'related', label: 'Preserves docstrings and metadata' },
+    { term: 'Class decorators', relation: 'advanced', label: 'Decorating class constructors and methods' },
+    { term: 'Monkey patching', relation: 'alternative', label: 'Brittle runtime attribute replacement' },
+  ],
+  'decorators': [
+    { term: 'Closures', relation: 'prerequisite', label: 'Inner wrapper functions capturing outer scope' },
+    { term: 'Higher-order functions', relation: 'prerequisite', label: 'Functions taking and returning functions' },
+    { term: 'functools.wraps', relation: 'related', label: 'Preserves docstrings and metadata' },
+    { term: 'Class decorators', relation: 'advanced', label: 'Decorating class constructors and methods' },
+    { term: 'Monkey patching', relation: 'alternative', label: 'Brittle runtime attribute replacement' },
+  ],
 
-  // JavaScript & React
+  // JavaScript & React Ecosystem
   'memoization': [
     { term: 'Pure functions', relation: 'prerequisite', label: 'Required for safe caching' },
     { term: 'Cache invalidation', relation: 'used_with', label: 'Critical lifecycle concern' },
@@ -122,7 +239,7 @@ const KNOWLEDGE_GRAPH = {
  * @param {string} text
  * @returns {string}
  */
-function normalizeKey(text) {
+export function normalizeKey(text) {
   return (text || '')
     .toLowerCase()
     .replace(/[^\w\s]/g, '')
@@ -135,7 +252,7 @@ function normalizeKey(text) {
  *
  * @param {string} conceptTerm - Selected text or extracted topic
  * @param {string} [contextCategory] - Broad category hint
- * @returns {ConceptRelation[]} Array of connected concepts
+ * @returns {Array<{ term: string, relation: string, label: string }>} Array of connected concepts
  */
 export function getRelatedConcepts(conceptTerm, contextCategory = '') {
   if (!conceptTerm) return [];
@@ -162,7 +279,7 @@ export function getRelatedConcepts(conceptTerm, contextCategory = '') {
  * Dynamic relationship inferrer based on common patterns.
  * @param {string} term
  * @param {string} category
- * @returns {ConceptRelation[]}
+ * @returns {Array<{ term: string, relation: string, label: string }>}
  */
 function generateDynamicRelations(term, category) {
   const lower = term.toLowerCase();
@@ -170,15 +287,15 @@ function generateDynamicRelations(term, category) {
   if (lower.includes('hook') || lower.includes('state') || lower.includes('effect')) {
     return [
       { term: 'Component lifecycle', relation: 'prerequisite', label: 'Re-render triggers' },
-      { term: 'Immutability', relation: 'used_with', label: 'State update rule' },
-      { term: 'Fiber tree', relation: 'subconcept', label: 'React internal graph' },
+      { term: 'Immutability', relation: 'related', label: 'State update rule' },
+      { term: 'Fiber tree', relation: 'advanced', label: 'React internal graph' },
     ];
   }
 
   if (lower.includes('api') || lower.includes('http') || lower.includes('rest')) {
     return [
       { term: 'HTTP status codes', relation: 'prerequisite', label: 'Standard response protocol' },
-      { term: 'Idempotency', relation: 'used_with', label: 'Safe network retries' },
+      { term: 'Idempotency', relation: 'related', label: 'Safe network retries' },
       { term: 'GraphQL', relation: 'alternative', label: 'Declarative query alternative' },
     ];
   }
@@ -186,16 +303,16 @@ function generateDynamicRelations(term, category) {
   if (lower.includes('sort') || lower.includes('search') || lower.includes('tree') || lower.includes('graph')) {
     return [
       { term: 'Big-O notation', relation: 'prerequisite', label: 'Complexity evaluation' },
-      { term: 'Recursion', relation: 'used_with', label: 'Traversal mechanics' },
-      { term: 'Memory overhead', relation: 'subconcept', label: 'Stack vs heap trade-off' },
+      { term: 'Recursion', relation: 'related', label: 'Traversal mechanics' },
+      { term: 'Memory overhead', relation: 'advanced', label: 'Stack vs heap trade-off' },
     ];
   }
 
   // Universal fallback relations for general technical terms
   return [
-    { term: 'Architecture trade-offs', relation: 'paradigm', label: 'Design considerations' },
-    { term: 'Best practices', relation: 'used_with', label: 'Industry conventions' },
-    { term: 'Edge cases', relation: 'subconcept', label: 'Reliability bounds' },
+    { term: 'Architecture trade-offs', relation: 'related', label: 'Design considerations' },
+    { term: 'Best practices', relation: 'related', label: 'Industry conventions' },
+    { term: 'Edge cases', relation: 'advanced', label: 'Reliability bounds' },
   ];
 }
 
@@ -210,7 +327,7 @@ export function inferConceptCategory(term, language) {
   const lower = (term || '').toLowerCase();
   const lang = (language || '').toLowerCase();
 
-  if (lang === 'python' || lower.includes('python') || lower.includes('django') || lower.includes('flask')) {
+  if (lang === 'python' || lower.includes('python') || lower.includes('django') || lower.includes('flask') || lower.includes('iterable') || lower.includes('yield') || lower.includes('lambda')) {
     return 'Python';
   }
   if (lower.startsWith('use') || lower.includes('react') || lower.includes('jsx')) {
@@ -219,7 +336,7 @@ export function inferConceptCategory(term, language) {
   if (lang === 'javascript' || lang === 'typescript' || lower.includes('js') || lower.includes('node') || lower.includes('closure') || lower.includes('promise')) {
     return 'JavaScript';
   }
-  if (lower.includes('microservice') || lower.includes('cap') || lower.includes('distributed') || lower.includes('cache') || lower.includes('concurrency')) {
+  if (lower.includes('microservice') || lower.includes('cap') || lower.includes('distributed') || lower.includes('cache') || lower.includes('concurrency') || lower.includes('idempotenc') || lower.includes('consensus')) {
     return 'Architecture';
   }
   if (lower.includes('sort') || lower.includes('search') || lower.includes('tree') || lower.includes('graph') || lower.includes('big-o') || lower.includes('complexity')) {
@@ -243,4 +360,176 @@ export function inferConceptCategory(term, language) {
   }
 
   return 'General';
+}
+
+/**
+ * Validate a concept relationship before adding it to the graph.
+ * Enforces semantic validity, rejects self-loops and empty inputs.
+ *
+ * @param {string} sourceTerm
+ * @param {string} targetTerm
+ * @param {string} relation
+ * @param {string} [label]
+ * @returns {{ valid: boolean, error?: string }}
+ */
+export function validateRelationship(sourceTerm, targetTerm, relation, label = '') {
+  if (!sourceTerm || typeof sourceTerm !== 'string' || !sourceTerm.trim()) {
+    return { valid: false, error: 'Source term cannot be empty' };
+  }
+  if (!targetTerm || typeof targetTerm !== 'string' || !targetTerm.trim()) {
+    return { valid: false, error: 'Target term cannot be empty' };
+  }
+
+  const s = normalizeKey(sourceTerm);
+  const t = normalizeKey(targetTerm);
+
+  if (s === t) {
+    return { valid: false, error: 'Self-referential relationships are not permitted' };
+  }
+
+  const relLower = (relation || '').toLowerCase().trim();
+  if (!VALID_RELATIONSHIPS.includes(relLower)) {
+    return {
+      valid: false,
+      error: `Invalid relationship type "${relation}". Allowed: prerequisite, related, advanced, alternative, confused_with.`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Generate 3-4 curated recommendations for next steps after exploring a concept.
+ * Avoids overwhelming the user with excessive recommendations.
+ *
+ * @param {string} conceptTerm
+ * @param {Array<Object>} [userConcepts=[]] - User's existing saved concepts
+ * @returns {Array<{ term: string, action: string, reason: string, relation: string }>}
+ */
+export function getCuratedRecommendations(conceptTerm, userConcepts = []) {
+  if (!conceptTerm) return [];
+  const related = getRelatedConcepts(conceptTerm);
+  if (!related || related.length === 0) return [];
+
+  const userTerms = new Set(
+    userConcepts.map((c) => normalizeKey(c.selectedText || c.term || c.title || ''))
+  );
+
+  const recommendations = [];
+
+  for (const rel of related) {
+    if (recommendations.length >= 4) break;
+
+    const normRelTerm = normalizeKey(rel.term);
+    const alreadyUnderstood = userConcepts.some(
+      (c) => normalizeKey(c.selectedText || c.term || '') === normRelTerm &&
+             (c.understandingStatus === 'understood' || c.understandingLevel === 'understood')
+    );
+
+    // If user already mastered this prerequisite, skip to next progression
+    if (alreadyUnderstood && rel.relation === 'prerequisite') {
+      continue;
+    }
+
+    let action = `Explore ${rel.term}`;
+    const relCanonical = normalizeRelationType(rel.relation);
+
+    switch (relCanonical) {
+      case 'prerequisite':
+        action = `Learn ${rel.term} (Prerequisite)`;
+        break;
+      case 'advanced':
+        action = `Understand ${rel.term}`;
+        break;
+      case 'alternative':
+        action = `Compare with ${rel.term}`;
+        break;
+      case 'confused_with':
+        action = `Clarify difference with ${rel.term}`;
+        break;
+      case 'related':
+      default:
+        action = `Explore ${rel.term}`;
+        break;
+    }
+
+    recommendations.push({
+      term: rel.term,
+      action,
+      reason: rel.label || `Connected via ${relCanonical} relationship`,
+      relation: relCanonical,
+      isSaved: userTerms.has(normRelTerm),
+    });
+  }
+
+  return recommendations.slice(0, 4);
+}
+
+/**
+ * Trace the prerequisite chain for a given concept term.
+ *
+ * @param {string} conceptTerm
+ * @param {number} [maxDepth=5]
+ * @returns {Array<{ term: string, label: string }>}
+ */
+export function getPrerequisiteChain(conceptTerm, maxDepth = 5) {
+  const chain = [];
+  const visited = new Set();
+  let current = conceptTerm;
+
+  while (current && chain.length < maxDepth) {
+    const norm = normalizeKey(current);
+    if (visited.has(norm)) break;
+    visited.add(norm);
+
+    const related = getRelatedConcepts(current);
+    const prereq = related.find(
+      (r) => normalizeRelationType(r.relation) === 'prerequisite'
+    );
+
+    if (prereq && !visited.has(normalizeKey(prereq.term))) {
+      chain.push({ term: prereq.term, label: prereq.label });
+      current = prereq.term;
+    } else {
+      break;
+    }
+  }
+
+  return chain;
+}
+
+/**
+ * Cluster user concepts into semantic groups (e.g. Python Iteration Protocol).
+ *
+ * @param {Array<Object>} concepts
+ * @param {Array<Object>} [customEdges=[]]
+ * @returns {Array<{ groupName: string, category: string, concepts: Array<Object> }>}
+ */
+export function groupRelatedConcepts(concepts = [], customEdges = []) {
+  if (!concepts || concepts.length === 0) return [];
+
+  const clusters = new Map();
+
+  for (const concept of concepts) {
+    const category = concept.category || 'General';
+    if (!clusters.has(category)) {
+      clusters.set(category, []);
+    }
+    clusters.get(category).push(concept);
+  }
+
+  const result = [];
+  for (const [category, items] of clusters.entries()) {
+    result.push({
+      groupName: `${category} Learning Path`,
+      category,
+      concepts: items,
+      totalCount: items.length,
+      understoodCount: items.filter(
+        (c) => c.understandingStatus === 'understood' || c.understandingLevel === 'understood'
+      ).length,
+    });
+  }
+
+  return result;
 }

@@ -285,9 +285,20 @@ export async function getLearningStats() {
   const glossary = await getGlossary();
   const total = glossary.length;
 
-  const understoodCount = glossary.filter((c) => c.understandingLevel === 'understood').length;
-  const reviewingCount = glossary.filter((c) => c.understandingLevel === 'reviewing').length;
-  const needExplanationCount = glossary.filter((c) => c.understandingLevel === 'need_explanation').length;
+  const understoodCount = glossary.filter(
+    (c) => c.understandingLevel === 'understood' || c.understandingStatus === 'understood'
+  ).length;
+  const reviewingCount = glossary.filter(
+    (c) => c.understandingLevel === 'reviewing' || c.understandingLevel === 'learning' ||
+           c.understandingStatus === 'reviewing' || c.understandingStatus === 'learning'
+  ).length;
+  const needExplanationCount = glossary.filter(
+    (c) => c.understandingLevel === 'need_explanation' || c.understandingLevel === 'needs_revision' ||
+           c.understandingStatus === 'need_explanation' || c.understandingStatus === 'needs_revision'
+  ).length;
+  const notReviewedCount = glossary.filter(
+    (c) => c.understandingLevel === 'not_reviewed' || c.understandingStatus === 'not_reviewed'
+  ).length;
   const savedCount = glossary.filter((c) => c.isSaved).length;
 
   // Category counts
@@ -303,7 +314,10 @@ export async function getLearningStats() {
     totalConcepts: total,
     understoodCount,
     reviewingCount,
+    learningCount: reviewingCount,
     needExplanationCount,
+    needsRevisionCount: needExplanationCount,
+    notReviewedCount,
     savedCount,
     categoryCounts,
     masteryPercentage,

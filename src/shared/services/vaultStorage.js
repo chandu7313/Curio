@@ -93,6 +93,24 @@ export const storageAdapter = {
 };
 
 /**
+ * Normalize understanding status across modern and legacy values.
+ *  - 'needs_revision' (modern) & 'need_explanation' (legacy)
+ *  - 'learning' (modern) & 'reviewing' (legacy)
+ *  - 'understood'
+ *  - 'not_reviewed' (default)
+ *
+ * @param {string} status
+ * @returns {'not_reviewed'|'learning'|'understood'|'needs_revision'}
+ */
+export function normalizeUnderstandingStatus(status) {
+  const s = (status || '').toLowerCase().trim();
+  if (s === 'need_explanation' || s === 'needs_revision') return 'needs_revision';
+  if (s === 'reviewing' || s === 'learning') return 'learning';
+  if (s === 'understood') return 'understood';
+  return 'not_reviewed';
+}
+
+/**
  * Generate a unique identifier with optional prefix.
  * @param {string} [prefix='c']
  * @returns {string}
@@ -424,8 +442,11 @@ export async function searchVaultConcepts(params = {}) {
 
     // Understanding status filter
     if (understandingStatus !== 'All') {
-      const status = item.understandingStatus || item.understandingLevel || 'not_reviewed';
-      if (status !== understandingStatus) return false;
+      const currentNorm = normalizeUnderstandingStatus(item.understandingStatus || item.understandingLevel);
+      const targetNorm = normalizeUnderstandingStatus(understandingStatus);
+      if (currentNorm !== targetNorm && item.understandingStatus !== understandingStatus && item.understandingLevel !== understandingStatus) {
+        return false;
+      }
     }
 
     // Free text search
@@ -458,9 +479,16 @@ export async function searchVaultConcepts(params = {}) {
       case 'title_desc':
         return (b.title || '').localeCompare(a.title || '');
       case 'understanding': {
-        const order = { need_explanation: 0, not_reviewed: 1, understood: 2 };
-        const scoreA = order[a.understandingStatus] !== undefined ? order[a.understandingStatus] : 1;
-        const scoreB = order[b.understandingStatus] !== undefined ? order[b.understandingStatus] : 1;
+        const order = {
+          needs_revision: 0,
+          need_explanation: 0,
+          learning: 1,
+          reviewing: 1,
+          not_reviewed: 2,
+          understood: 3,
+        };
+        const scoreA = order[a.understandingStatus] !== undefined ? order[a.understandingStatus] : (order[a.understandingLevel] ?? 2);
+        const scoreB = order[b.understandingStatus] !== undefined ? order[b.understandingStatus] : (order[b.understandingLevel] ?? 2);
         return scoreA - scoreB;
       }
       case 'recently_saved':
