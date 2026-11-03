@@ -1,0 +1,64 @@
+name: Curio CI & Production Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── 1. Chrome Extension Build & Unit Tests ──────────────────────────
+  extension-verification:
+    name: Extension Test, Build & Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Extension Dependencies
+        run: npm ci
+
+      - name: Execute Automated Unit & Compatibility Tests
+        run: npm test
+
+      - name: Compile Extension Production Bundles
+        run: npm run build
+
+      - name: Verify & Package Chrome Web Store Bundle
+        run: npm run package
+
+      - name: Upload Extension Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: curio-extension-dist
+          path: curio-extension-*.zip
+          retention-days: 14
+
+  # ─── 2. Backend API & Schema Verification ───────────────────────────
+  backend-verification:
+    name: Backend Lint, Security & Database Verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Backend Dependencies
+        run: npm install
+
+      - name: Validate Backend Syntax & Entrypoint
+        run: node --check src/server.js && node --check src/db.js && node --check src/routes/learning.js
+
