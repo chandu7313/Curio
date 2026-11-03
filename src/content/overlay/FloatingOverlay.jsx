@@ -50,6 +50,7 @@ import {
   addSessionMessage,
   getBoundedHistory,
 } from '../../shared/services/sessionManager.js';
+import { saveVaultConcept } from '../../shared/services/vaultStorage.js';
 import { calculateOverlayPosition, clampDragPosition } from './positioning.js';
 import {
   generateMockExplanation,
@@ -427,10 +428,33 @@ export function FloatingOverlay({ context, onClose }) {
   };
 
   const handleToggleBookmark = async () => {
-    if (!learningConcept) return;
-    const nowSaved = await toggleSaveConcept(learningConcept.id);
-    setBookmarked(nowSaved);
-    setLearningConcept((prev) => (prev ? { ...prev, isSaved: nowSaved } : null));
+    const rawText = (currentContext.selectedText || currentContext.text || '').trim();
+    if (!rawText) return;
+
+    const newSaved = !bookmarked;
+    setBookmarked(newSaved);
+
+    if (newSaved) {
+      await saveVaultConcept({
+        id: learningConcept?.id,
+        title: currentContext.selectedText,
+        selectedText: rawText,
+        explanation: streamingText,
+        category: currentContext.category || learningConcept?.category || 'General',
+        pageTitle: currentContext.pageTitle || (typeof document !== 'undefined' ? document.title : '') || '',
+        pageUrl: currentContext.pageUrl || (typeof window !== 'undefined' ? window.location.href : '') || '',
+        understandingStatus: 'not_reviewed',
+        conversationHistory: thread.map((m) => ({
+          role: m.role || (m.sender === 'user' ? 'user' : 'assistant'),
+          content: m.text || m.content || '',
+        })),
+      });
+    }
+
+    if (learningConcept?.id) {
+      await toggleSaveConcept(learningConcept.id);
+      setLearningConcept((prev) => (prev ? { ...prev, isSaved: newSaved } : null));
+    }
   };
 
   const handleSetUnderstanding = async (level) => {

@@ -144,7 +144,7 @@ export const App = () => {
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Learning Hub & Glossary</span>
+              <span>Knowledge Vault</span>
             </button>
             <button
               type="button"

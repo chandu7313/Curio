@@ -174,3 +174,4 @@ The React 19 floating interface (`FloatingOverlay.jsx`) includes dedicated conve
 1. **Zero Unsolicited Data Collection**: Only the text explicitly highlighted by the user and its immediate enclosing paragraph are sent to the AI backend.
 2. **Ephemeral Active Thread**: Active conversation turns live exclusively in browser memory during the active session. If the user dismisses the overlay or navigates away, the temporary conversation memory is discarded unless explicitly saved via the **Bookmark** action into the local Learning Hub.
 3. **No Third-Party Telemetry**: Conversations are not tracked, logged, or shared with analytics providers.
+

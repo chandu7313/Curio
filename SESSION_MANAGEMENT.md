@@ -176,3 +176,4 @@ Curio solves this via a **Hybrid Sliding Window + Summarization Model**:
 - **Session Isolation in Storage**: Active conversation turns are stored solely in memory (`sessionRef.current`) during the lifetime of the overlay.
 - **Learning Hub Saving**: If the user clicks the **Bookmark** action, the concept is permanently indexed in `chrome.storage.local` under the `curio_learning_concepts_v1` key, tracking understanding rating, review flags, and definition summary.
 - **Automatic Garbage Collection**: Unsaved conversational threads are automatically dereferenced when the floating interface unmounts or switches selections, leaving zero persistent memory footprint on the client machine.
+
