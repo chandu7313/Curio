@@ -115,3 +115,4 @@ Curio meets all tier-1 enterprise browser performance criteria:
 - **Clean 1.0 MB distribution bundle**
 
 **Performance Certification**: `VERIFIED & APPROVED FOR RELEASE`
+

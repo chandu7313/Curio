@@ -17,7 +17,7 @@ import {
   getCuratedRecommendations,
   inferConceptCategory,
   validateRelationship,
-} from '../../src/shared/services/knowledgeGraph.js';
+} from '../services/knowledgeGraph.js';
 
 const router = Router();
 

@@ -127,3 +127,4 @@ If a critical defect is identified after Chrome Web Store publication:
 2. Implement hotfix in `src/` and run `npm test && npm run build && npm run package`.
 3. Submit update to Chrome Developer Dashboard with release note: *"Emergency patch resolving [Issue description]"*.
 4. For backend-related issues: Roll back container image to previous tag via `docker compose up -d --build` or Kubernetes rollout undo without requiring an extension update.
+

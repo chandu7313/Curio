@@ -178,3 +178,4 @@ Curio operates under a **Zero-Trust Client Architecture**: all webpage content, 
 The Curio architecture satisfies all criteria for enterprise security, Chrome Web Store Developer Program policies, and zero-trust browser extension standards. No critical, high, or medium security vulnerabilities remain.
 
 **Audit Certification**: `APPROVED FOR PRODUCTION RELEASE (v1.0.0)`
+
