@@ -1125,7 +1125,7 @@ export function FloatingOverlay({ context, onClose }) {
       </div>
 
       {/* ─── Comprehension & Understanding Actions ──────────────────── */}
-      {!loading && learningConcept && (
+      {status !== 'loading' && learningConcept && (
         <div className="px-3.5 py-1.5 bg-zinc-900/60 border-t border-zinc-800/80 flex items-center justify-between text-xs select-none">
           <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
             <Tag className="w-3 h-3 text-brand-400" />
@@ -1178,7 +1178,7 @@ export function FloatingOverlay({ context, onClose }) {
       )}
 
       {/* ─── Suggested Prompt Chips ─────────────────────────────────── */}
-      {!loading && (
+      {status !== 'loading' && (
         <div className="px-3.5 py-1.5 bg-zinc-950/80 border-t border-zinc-900 flex items-center gap-1.5 overflow-x-auto curio-scrollbar select-none">
           <button
             onClick={() => handleFollowUpSubmit('Can you give a practical real-world example?')}

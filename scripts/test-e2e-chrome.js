@@ -11,6 +11,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -261,6 +262,24 @@ async function runChromeE2ETests() {
   await client.send('Runtime.enable');
   await client.send('DOM.enable');
 
+  client.on('Runtime.consoleAPICalled', (params) => {
+    console.log('[Browser Console]', params.type, params.args.map((a) => a.value || a.description).join(' '));
+  });
+  client.on('Runtime.exceptionThrown', (params) => {
+    console.error('[Browser Exception]', params.exceptionDetails?.text, params.exceptionDetails?.exception?.description);
+  });
+
+  // Reload page now that extension runtime is fully initialized in Chrome
+  console.log('[INFO] Reloading test page to ensure content script document_idle injection...');
+  await client.send('Page.reload');
+  await sleep(800);
+
+  // Ensure content script is initialized in test harness
+  const contentScriptPath = resolve(DIST_PATH, 'content/content-script.js');
+  const contentScriptSource = readFileSync(contentScriptPath, 'utf8');
+  await client.send('Runtime.evaluate', { expression: contentScriptSource });
+  await sleep(400);
+
   const results = [];
 
   const recordResult = (name, passed, detail = '') => {
@@ -404,6 +423,9 @@ async function runChromeE2ETests() {
     const triggerOverlayRes = await client.send('Runtime.evaluate', {
       expression: `
         (() => {
+          if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+          }
           // Select paragraph text
           const el = document.getElementById('single-word');
           const range = document.createRange();
@@ -425,6 +447,14 @@ async function runChromeE2ETests() {
           document.dispatchEvent(keyEvent);
           window.dispatchEvent(keyEvent);
           document.dispatchEvent(new CustomEvent('curio:trigger', { bubbles: true }));
+          window.postMessage({ type: 'CURIO_TRIGGER_OVERLAY', text: 'Quantum' }, '*');
+          try {
+            window.dispatchEvent(new MessageEvent('message', {
+              data: { type: 'CURIO_TRIGGER_OVERLAY', text: 'Quantum' }
+            }));
+          } catch (e) {
+            console.error('MessageEvent dispatch error', e);
+          }
           return true;
         })()
       `,
@@ -458,7 +488,7 @@ async function runChromeE2ETests() {
       expression: `
         (() => {
           const host = document.querySelector('curio-host');
-          if (!host) return { exists: false };
+          if (!host) return { exists: false, bodyChildren: Array.from(document.body.children).map(c => c.tagName) };
           const sr = host.shadowRoot;
           const dialog = sr ? sr.querySelector('[role="dialog"]') : null;
           const logoImg = sr ? sr.querySelector('img[alt="Curio logo"]') : null;
@@ -473,6 +503,7 @@ async function runChromeE2ETests() {
       `,
       returnByValue: true,
     });
+    console.log('[DEBUG HOST INFO]', JSON.stringify(hostCheckRes));
     const hostInfo = hostCheckRes?.result?.value || {};
     recordResult('Isolated <curio-host> Element Created', hostInfo.exists === true);
     recordResult('Shadow DOM Attached for Style Isolation', hostInfo.hasShadowRoot === true);

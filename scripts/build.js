@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'production';
+
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve, dirname } from 'path';
@@ -12,6 +14,7 @@ async function buildExtension() {
     root: rootDir,
     base: '',
     mode: 'production',
+    configFile: false,
     plugins: [react()],
     build: {
       outDir: 'dist',
@@ -37,6 +40,7 @@ async function buildExtension() {
     root: rootDir,
     base: '',
     mode: 'production',
+    configFile: false,
     plugins: [react()],
     define: {
       'process.env.NODE_ENV': JSON.stringify('production'),

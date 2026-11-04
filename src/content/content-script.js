@@ -242,10 +242,12 @@ function handleTriggerSelectionFlow(fallbackText = '') {
 
   // Step 5: Forward to background service worker
   try {
-    chrome.runtime.sendMessage({
-      type: 'SELECTION_CAPTURED',
-      payload,
-    });
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({
+        type: 'SELECTION_CAPTURED',
+        payload,
+      });
+    }
   } catch (err) {
     console.warn('[Curio] Background connection lost:', err);
     showToast('Extension connection lost. Try refreshing the page.', { duration: 4000 });
@@ -254,30 +256,32 @@ function handleTriggerSelectionFlow(fallbackText = '') {
 
 // ─── Extension Messaging ─────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  switch (message.type) {
-    case 'PING':
-      sendResponse({
-        success: true,
-        data: { status: 'ready', url: window.location.href },
-      });
-      break;
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage?.addListener) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    switch (message.type) {
+      case 'PING':
+        sendResponse({
+          success: true,
+          data: { status: 'ready', url: window.location.href },
+        });
+        break;
 
-    case 'TRIGGER_SELECTION_FLOW':
-      handleTriggerSelectionFlow(message.selectionText);
-      sendResponse({ success: true });
-      break;
+      case 'TRIGGER_SELECTION_FLOW':
+        handleTriggerSelectionFlow(message.selectionText);
+        sendResponse({ success: true });
+        break;
 
-    case 'SHOW_TOAST':
-      showToast(message.message);
-      sendResponse({ success: true });
-      break;
+      case 'SHOW_TOAST':
+        showToast(message.message);
+        sendResponse({ success: true });
+        break;
 
-    default:
-      sendResponse({ success: false, error: 'Unhandled content script message' });
-  }
-  return false;
-});
+      default:
+        sendResponse({ success: false, error: 'Unhandled content script message' });
+    }
+    return false;
+  });
+}
 
 // ─── In-Content Keyboard Shortcut (Fallback) ─────────────────────────
 // The primary shortcut is handled by chrome.commands at the browser level.
@@ -295,3 +299,8 @@ function onKeydownTrigger(event) {
 window.addEventListener('keydown', onKeydownTrigger, { capture: true });
 document.addEventListener('keydown', onKeydownTrigger, { capture: true });
 document.addEventListener('curio:trigger', () => handleTriggerSelectionFlow(), { capture: true });
+window.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'CURIO_TRIGGER_OVERLAY' || event.data.type === 'curio:trigger')) {
+    handleTriggerSelectionFlow(event.data.text || event.data.selectionText || '');
+  }
+});

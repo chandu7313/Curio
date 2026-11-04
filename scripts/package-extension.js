@@ -10,7 +10,7 @@
  * Run: node scripts/package-extension.js
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
@@ -88,6 +88,11 @@ const zipFileName = `curio-extension-v${manifest.version}.zip`;
 const zipFilePath = resolve(rootDir, zipFileName);
 
 try {
+  // Remove prior archive if present to ensure clean zip
+  if (existsSync(zipFilePath)) {
+    unlinkSync(zipFilePath);
+  }
+
   // Use system zip utility
   execSync(`cd "${distDir}" && zip -r -q "${zipFilePath}" . -x "*.DS_Store"`, {
     stdio: 'inherit',
