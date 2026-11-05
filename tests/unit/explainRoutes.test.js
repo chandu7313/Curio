@@ -201,30 +201,35 @@ describe('Explanation Streaming Orchestration & Failover', () => {
       },
     };
 
+    aiProviderFactory.providers.clear();
     aiProviderFactory.registerProvider('failing_primary', failingPrimary);
     aiProviderFactory.registerProvider('healthy_secondary', healthySecondary);
 
-    const res = createMockStreamResponse();
-    await explanationService.streamExplanation(
-      {
-        selectedText: 'failover_test',
-        provider: 'failing_primary',
-      },
-      res
-    );
+    try {
+      const res = createMockStreamResponse();
+      await explanationService.streamExplanation(
+        {
+          selectedText: 'failover_test',
+          provider: 'failing_primary',
+        },
+        res
+      );
 
-    const events = res.getParsedEvents();
-    // Verify failover started with secondary
-    const startEvents = events.filter((e) => e.event === 'start');
-    assert.ok(startEvents.length >= 1);
+      const events = res.getParsedEvents();
+      // Verify failover started with secondary
+      const startEvents = events.filter((e) => e.event === 'start');
+      assert.ok(startEvents.length >= 1);
 
-    const deltaEvents = events.filter((e) => e.event === 'delta');
-    assert.equal(deltaEvents.length, 1);
-    assert.equal(deltaEvents[0].data.text, 'Content successfully recovered via secondary provider.');
+      const deltaEvents = events.filter((e) => e.event === 'delta');
+      assert.equal(deltaEvents.length, 1);
+      assert.equal(deltaEvents[0].data.text, 'Content successfully recovered via secondary provider.');
 
-    const doneEvent = events.find((e) => e.event === 'done');
-    assert.ok(doneEvent);
-    assert.equal(doneEvent.data.provider, 'healthy_secondary');
+      const doneEvent = events.find((e) => e.event === 'done');
+      assert.ok(doneEvent);
+      assert.equal(doneEvent.data.provider, 'healthy_secondary');
+    } finally {
+      aiProviderFactory.resetProviders();
+    }
   });
 
   it('should NEVER failover or concatenate if error occurs mid-stream (after deltas sent)', async () => {

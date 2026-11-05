@@ -197,6 +197,7 @@ describe('AI Provider Factory', () => {
 
   it('should identify fallback provider when primary fails', () => {
     const factory = new AIProviderFactory();
+    factory.providers.clear();
 
     // Register active mock providers
     factory.registerProvider('mock_primary', {

@@ -73,11 +73,11 @@ const EnvSchema = z.object({
 
   // Google Gemini API
   GEMINI_API_KEY: z.string().default(''),
-  GEMINI_MODEL: z.string().default('gemini-2.0-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
 
   // Groq API
   GROQ_API_KEY: z.string().default(''),
-  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  GROQ_MODEL: z.string().default('openai/gpt-oss-120b'),
 
   // Database (Optional for explanation, required for cloud sync)
   DATABASE_URL: z.string().default(''),

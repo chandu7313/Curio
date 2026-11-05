@@ -25,8 +25,8 @@ export const SETTINGS_STORAGE_KEY = 'curio_settings_v1';
  * Arbitrary models are strictly rejected unless explicitly allowed.
  */
 export const ALLOWED_MODELS = {
-  gemini: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
-  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  gemini: ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+  groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
 };
 
 // In-memory listener bus for real-time component synchronization
